@@ -1,0 +1,2 @@
+# amao-nuxt
+nuxt demo
