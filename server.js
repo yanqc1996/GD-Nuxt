@@ -1,31 +1,36 @@
-import express from "express";
-import { Nuxt, Builder } from "nuxt";
+const port = process.env.PORT || 3000;
+const isProd = process.env.NODE_ENV === "production";
 
-const app = express();
+const http = require("http");
+const app = require("express")();
+const server = http.createServer(app);
+const io = require("socket.io")(server);
 
-const host = process.env.HOST || "127.0.0.1";
-const port = process.env.PORT || 3001;
-
-// Import and set Nuxt options
+const { Nuxt, Builder } = require("nuxt");
+// We instantiate Nuxt with the options
 const config = require("./nuxt.config.js");
-config.dev = process.env.NODE_ENV !== "production";
+config.dev = !isProd;
 
 const nuxt = new Nuxt(config);
-
 // Start build process in dev mode
 if (config.dev) {
   const builder = new Builder(nuxt);
   builder.build();
 }
-require("./server/router")(app, renderPage);
-// Give nuxt middleware to express
-// app.use(nuxt.render);
+app.use(nuxt.render);
 
-// Start express server
-app.listen(port, host);
-/**
- * @function 服务端渲染
- */
-function renderPage(req, res, path, params = {}) {
-  return nuxt.render(req, res, path, params);
-}
+// Listen the server
+server.listen(port, "0.0.0.0");
+console.log("Server listening on localhost:" + port); // eslint-disable-line no-console
+
+// Socket.io
+const messages = [];
+io.on("connection", (socket) => {
+  socket.on("last-messages", function (fn) {
+    fn(messages.slice(-50));
+  });
+  socket.on("send-message", function (message) {
+    messages.push(message);
+    socket.broadcast.emit("new-message", message);
+  });
+});
